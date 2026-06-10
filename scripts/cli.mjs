@@ -23,21 +23,23 @@ Examples:
 `.trim()
 
 async function main() {
+  const dir = resolveDir(args)
+
   switch (command) {
     case 'validate': {
       const mod = await import('./validate.mjs')
-      const dir = resolveDir(args)
       process.exit(await mod.run(dir))
+      break
     }
     case 'pack': {
       const mod = await import('./pack.mjs')
-      const dir = resolveDir(args)
       process.exit(await mod.run(dir, args))
+      break
     }
     case 'generate-types': {
       const mod = await import('./generate-types.mjs')
-      const dir = resolveDir(args)
       process.exit(await mod.run(dir))
+      break
     }
     case 'help':
     case '--help':
@@ -45,6 +47,7 @@ async function main() {
     case undefined:
       console.log(HELP)
       process.exit(0)
+      break
     default:
       console.error(`Unknown command: ${command}\n`)
       console.log(HELP)

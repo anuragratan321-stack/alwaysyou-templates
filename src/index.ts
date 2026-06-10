@@ -94,6 +94,10 @@ export function useNavigation<T extends string>(
   isFirst: boolean
   isLast: boolean
 } {
+  if (screens.length === 0) {
+    throw new Error('useNavigation: screens array must not be empty')
+  }
+
   const initial = options?.initial ?? screens[0]
   const [idx, setIdx] = useState(() => Math.max(0, screens.indexOf(initial)))
 
@@ -163,6 +167,7 @@ export function useAudio(
     return () => {
       a.pause()
       audioRef.current = null
+      setPlaying(false)
       window.removeEventListener('pointerdown', start)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps

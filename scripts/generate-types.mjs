@@ -53,15 +53,21 @@ function capitalize(s) {
   return s.charAt(0).toUpperCase() + s.slice(1).replace(/-(\w)/g, (_, c) => c.toUpperCase())
 }
 
+function isValidIdentifier(s) {
+  return /^[a-zA-Z_$][a-zA-Z0-9_$]*$/.test(s)
+}
+
 function generateInterface(fields, name, interfaces, allRequired = false) {
   const lines = []
   for (const field of fields) {
+    if (!field.key) continue
     const tsType = generateFieldType(field, name, interfaces)
     const optional = !allRequired && !field.required ? '?' : ''
+    const key = isValidIdentifier(field.key) ? field.key : `'${escapeQuote(field.key)}'`
     if (field.label) {
       lines.push(`/** ${field.label} */`)
     }
-    lines.push(`${field.key}${optional}: ${tsType}`)
+    lines.push(`${key}${optional}: ${tsType}`)
   }
   interfaces.push({ name, lines })
 }

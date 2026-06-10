@@ -132,7 +132,9 @@ const S = {
         display: 'flex', borderBottom: `1px solid ${BORDER}`,
     },
     tabBtn: {
-        flex: 1, padding: '8px 0', background: 'none', border: 'none',
+        flex: 1, padding: '8px 0', background: 'none',
+        borderTop: 'none', borderRight: 'none', borderLeft: 'none',
+        borderBottom: '2px solid transparent',
         color: TEXT_DIM, fontSize: 12, cursor: 'pointer', fontFamily: FONT,
     },
     tabBtnActive: {
@@ -158,7 +160,7 @@ const S = {
         textTransform: 'capitalize',
     },
     modeBtnActive: {
-        background: ACCENT, borderColor: ACCENT, color: '#fff', fontWeight: 600,
+        background: ACCENT, border: `1px solid ${ACCENT}`, color: '#fff', fontWeight: 600,
     },
     empty: {
         color: TEXT_DIM, fontSize: 12, textAlign: 'center', padding: '20px 0',

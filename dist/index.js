@@ -48,6 +48,9 @@ export function useMilestone(name, reached) {
 }
 // ── useNavigation() — screen state machine with auto analytics ──────────────
 export function useNavigation(screens, options) {
+    if (screens.length === 0) {
+        throw new Error('useNavigation: screens array must not be empty');
+    }
     const initial = options?.initial ?? screens[0];
     const [idx, setIdx] = useState(() => Math.max(0, screens.indexOf(initial)));
     useScreen(screens[idx]);
@@ -99,6 +102,7 @@ export function useAudio(url, options) {
         return () => {
             a.pause();
             audioRef.current = null;
+            setPlaying(false);
             window.removeEventListener('pointerdown', start);
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps

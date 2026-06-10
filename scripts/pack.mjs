@@ -13,7 +13,7 @@ function collectFiles(dir, base) {
   base = base || dir
   const results = []
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
-    if (entry.name.startsWith('.') || EXCLUDE.has(entry.name)) continue
+    if (entry.name.startsWith('.') || EXCLUDE.has(entry.name) || entry.name.endsWith('.d.ts')) continue
     const full = join(dir, entry.name)
     if (entry.isDirectory()) {
       results.push(...collectFiles(full, base))

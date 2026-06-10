@@ -1,6 +1,5 @@
 import { readFileSync, readdirSync, existsSync, statSync } from 'node:fs'
-import { join, relative, extname } from 'node:path'
-import { resolve } from 'node:path'
+import { join, relative, resolve } from 'node:path'
 
 const VALID_FIELD_TYPES = new Set([
   'text', 'textarea', 'date', 'number',
