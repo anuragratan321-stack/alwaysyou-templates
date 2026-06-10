@@ -19,7 +19,7 @@ export type {
 // ── useAlwaysYou() ───────────────────────────────────────────────────────────
 // The main hook. Resolves from the dev provider if present, else window globals.
 
-export function useAlwaysYou<T extends Record<string, unknown> = TemplateData>(): {
+export function useAlwaysYou<T extends object = TemplateData>(): {
   data: T & PlatformContext
   track: TrackFn
   isPreview: boolean

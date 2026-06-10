@@ -1,6 +1,6 @@
 import type { PlatformContext, TemplateData, TrackFn } from './types';
 export type { AudioFieldValue, QuizQuestion, CapabilitiesAPI, PlatformContext, TemplateData, TrackFn, } from './types';
-export declare function useAlwaysYou<T extends Record<string, unknown> = TemplateData>(): {
+export declare function useAlwaysYou<T extends object = TemplateData>(): {
     data: T & PlatformContext;
     track: TrackFn;
     isPreview: boolean;
