@@ -2,12 +2,14 @@
 
 import {
   useCallback,
+  useEffect,
   useMemo,
   useRef,
   useState,
   type CSSProperties,
   type ReactNode,
 } from 'react'
+import { createPortal } from 'react-dom'
 import { AlwaysYouContext } from './context'
 import type { TemplateData, TrackFn } from './types'
 
@@ -37,6 +39,8 @@ export function AlwaysYouProvider({
 
   const eventsRef = useRef<TrackedEvent[]>([])
   const [eventTick, setEventTick] = useState(0)
+  const [portalMounted, setPortalMounted] = useState(false)
+  useEffect(() => { setPortalMounted(true) }, [])
 
   const value = useMemo(() => {
     const merged: TemplateData = {
@@ -61,17 +65,21 @@ export function AlwaysYouProvider({
     return { data: merged, track }
   }, [data, effectiveMode, onTrack])
 
+  const toolbar = (
+    <DevToolbar
+      mode={effectiveMode}
+      onModeChange={setOverrideMode}
+      events={eventsRef.current}
+      eventTick={eventTick}
+      schema={schema}
+      data={data}
+    />
+  )
+
   return (
     <AlwaysYouContext.Provider value={value}>
       {children}
-      <DevToolbar
-        mode={effectiveMode}
-        onModeChange={setOverrideMode}
-        events={eventsRef.current}
-        eventTick={eventTick}
-        schema={schema}
-        data={data}
-      />
+      {portalMounted ? createPortal(toolbar, document.body) : null}
     </AlwaysYouContext.Provider>
   )
 }
@@ -90,6 +98,7 @@ export function PhoneFrame({ children }: { children: ReactNode }) {
         border: '10px solid #2a2a2e',
         boxShadow: '0 24px 64px rgba(0,0,0,0.5)',
         background: '#000',
+        transform: 'translateZ(0)',
       }}>
         <div style={{ width: '100%', height: '100%', overflow: 'auto' }}>
           {children}

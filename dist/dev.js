@@ -1,6 +1,7 @@
 'use client';
 import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
-import { useMemo, useRef, useState, } from 'react';
+import { useEffect, useMemo, useRef, useState, } from 'react';
+import { createPortal } from 'react-dom';
 import { AlwaysYouContext } from './context';
 // ── AlwaysYouProvider ────────────────────────────────────────────────────────
 export function AlwaysYouProvider({ data, mode = 'full', schema, onTrack, children, }) {
@@ -8,6 +9,8 @@ export function AlwaysYouProvider({ data, mode = 'full', schema, onTrack, childr
     const effectiveMode = overrideMode ?? mode;
     const eventsRef = useRef([]);
     const [eventTick, setEventTick] = useState(0);
+    const [portalMounted, setPortalMounted] = useState(false);
+    useEffect(() => { setPortalMounted(true); }, []);
     const value = useMemo(() => {
         const merged = {
             ...data,
@@ -30,7 +33,8 @@ export function AlwaysYouProvider({ data, mode = 'full', schema, onTrack, childr
         };
         return { data: merged, track };
     }, [data, effectiveMode, onTrack]);
-    return (_jsxs(AlwaysYouContext.Provider, { value: value, children: [children, _jsx(DevToolbar, { mode: effectiveMode, onModeChange: setOverrideMode, events: eventsRef.current, eventTick: eventTick, schema: schema, data: data })] }));
+    const toolbar = (_jsx(DevToolbar, { mode: effectiveMode, onModeChange: setOverrideMode, events: eventsRef.current, eventTick: eventTick, schema: schema, data: data }));
+    return (_jsxs(AlwaysYouContext.Provider, { value: value, children: [children, portalMounted ? createPortal(toolbar, document.body) : null] }));
 }
 // ── PhoneFrame ───────────────────────────────────────────────────────────────
 export function PhoneFrame({ children }) {
@@ -43,6 +47,7 @@ export function PhoneFrame({ children }) {
                 border: '10px solid #2a2a2e',
                 boxShadow: '0 24px 64px rgba(0,0,0,0.5)',
                 background: '#000',
+                transform: 'translateZ(0)',
             }, children: _jsx("div", { style: { width: '100%', height: '100%', overflow: 'auto' }, children: children }) }) }));
 }
 // ── DevToolbar ───────────────────────────────────────────────────────────────
