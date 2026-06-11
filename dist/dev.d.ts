@@ -14,8 +14,8 @@ export declare function AlwaysYouProvider({ data, mode, schema, onTrack, childre
     schema?: SchemaJson;
     onTrack?: TrackFn;
     children: ReactNode;
-}): import("react").JSX.Element;
+}): import("react/jsx-runtime").JSX.Element;
 export declare function PhoneFrame({ children }: {
     children: ReactNode;
-}): import("react").JSX.Element;
+}): import("react/jsx-runtime").JSX.Element;
 export {};

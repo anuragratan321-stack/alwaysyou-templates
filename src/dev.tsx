@@ -111,6 +111,13 @@ export function PhoneFrame({ children }: { children: ReactNode }) {
 // ── DevToolbar ───────────────────────────────────────────────────────────────
 
 const MODES: Mode[] = ['full', 'preview', 'demo', 'card']
+const MODE_ICONS: Record<Mode, string> = { full: '▶', preview: '□', demo: '◇', card: '▄' }
+const MODE_DESCRIPTIONS: Record<Mode, string> = {
+  full: 'Live gift experience — the real recipient view.',
+  preview: 'Preview — lock screens are skipped.',
+  demo: 'Demo page — isPreview + isDemo are true.',
+  card: 'Card — static thumbnail, no interaction.',
+}
 
 function DevToolbar({
   mode,
@@ -130,7 +137,6 @@ function DevToolbar({
   const [open, setOpen] = useState(false)
   const [tab, setTab] = useState<'mode' | 'events' | 'schema'>('mode')
 
-  // Schema coverage
   const schemaKeys = useMemo(() => {
     if (!schema?.sections) return null
     const keys: string[] = []
@@ -142,6 +148,12 @@ function DevToolbar({
     return keys
   }, [schema])
 
+  const schemaCoverage = useMemo(() => {
+    if (!schemaKeys) return null
+    const filled = schemaKeys.filter((k) => k in data && data[k] !== undefined && data[k] !== '')
+    return { filled: filled.length, total: schemaKeys.length }
+  }, [schemaKeys, data])
+
   if (!open) {
     return (
       <button
@@ -149,31 +161,39 @@ function DevToolbar({
         style={S.fab}
         title="AlwaysYou Dev Tools"
       >
-        AY
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+          <path d="M2 4h12M2 8h8M2 12h10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+        </svg>
       </button>
     )
   }
 
   return (
     <div style={S.panel}>
-      {/* Header */}
       <div style={S.header}>
-        <span style={S.headerTitle}>AlwaysYou Dev</span>
-        <button onClick={() => setOpen(false)} style={S.closeBtn}>×</button>
+        <div style={S.headerLeft}>
+          <span style={S.headerDot} />
+          <span style={S.headerTitle}>Dev Tools</span>
+        </div>
+        <button onClick={() => setOpen(false)} style={S.closeBtn}>
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+            <path d="M3 3l8 8M11 3l-8 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+          </svg>
+        </button>
       </div>
 
-      {/* Tabs */}
       <div style={S.tabs}>
         <TabBtn active={tab === 'mode'} onClick={() => setTab('mode')}>Mode</TabBtn>
         <TabBtn active={tab === 'events'} onClick={() => setTab('events')}>
-          Events{events.length > 0 ? ` (${events.length})` : ''}
+          Events{events.length > 0 ? ` · ${events.length}` : ''}
         </TabBtn>
         {schemaKeys && (
-          <TabBtn active={tab === 'schema'} onClick={() => setTab('schema')}>Schema</TabBtn>
+          <TabBtn active={tab === 'schema'} onClick={() => setTab('schema')}>
+            Data{schemaCoverage ? ` · ${schemaCoverage.filled}/${schemaCoverage.total}` : ''}
+          </TabBtn>
         )}
       </div>
 
-      {/* Tab content */}
       <div style={S.body}>
         {tab === 'mode' && (
           <ModePanel mode={mode} onModeChange={onModeChange} />
@@ -194,41 +214,53 @@ function DevToolbar({
 function ModePanel({ mode, onModeChange }: { mode: Mode; onModeChange: (m: Mode) => void }) {
   return (
     <div>
-      <div style={S.label}>Render mode</div>
-      <div style={S.modeGrid}>
-        {MODES.map((m) => (
-          <button
-            key={m}
-            onClick={() => onModeChange(m)}
-            style={{
-              ...S.modeBtn,
-              ...(mode === m ? S.modeBtnActive : {}),
-            }}
-          >
-            {m}
-          </button>
-        ))}
+      <div style={S.modeList}>
+        {MODES.map((m) => {
+          const active = mode === m
+          return (
+            <button
+              key={m}
+              onClick={() => onModeChange(m)}
+              style={{
+                ...S.modeItem,
+                ...(active ? S.modeItemActive : {}),
+              }}
+            >
+              <span style={{ ...S.modeIcon, ...(active ? S.modeIconActive : {}) }}>
+                {MODE_ICONS[m]}
+              </span>
+              <span style={S.modeLabel}>{m}</span>
+              {active && <span style={S.modeCheck}>●</span>}
+            </button>
+          )
+        })}
       </div>
-      <div style={S.hint}>
-        {mode === 'full' && 'Live gift — the real recipient experience.'}
-        {mode === 'preview' && 'Preview — lock screens are skipped.'}
-        {mode === 'demo' && 'Demo page — isPreview + isDemo are true.'}
-        {mode === 'card' && 'Card — static frame, no interaction.'}
-      </div>
+      <div style={S.hint}>{MODE_DESCRIPTIONS[mode]}</div>
     </div>
   )
 }
 
 function EventsPanel({ events }: { events: TrackedEvent[] }) {
   if (events.length === 0) {
-    return <div style={S.empty}>No events yet. Interact with your template.</div>
+    return (
+      <div style={S.empty}>
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" style={{ marginBottom: 8, opacity: 0.4 }}>
+          <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="1.5"/>
+          <path d="M12 7v5l3 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+        </svg>
+        <div>No events yet</div>
+        <div style={{ fontSize: 11, opacity: 0.6, marginTop: 4 }}>Interact with your template to see tracked events here.</div>
+      </div>
+    )
   }
   return (
     <div style={S.eventList}>
       {[...events].reverse().map((e, i) => (
         <div key={events.length - i} style={S.eventRow}>
-          <span style={S.eventName}>{e.event}</span>
-          <span style={S.eventTime}>{formatTime(e.ts)}</span>
+          <div style={S.eventHeader}>
+            <span style={S.eventName}>{e.event}</span>
+            <span style={S.eventTime}>{formatTime(e.ts)}</span>
+          </div>
           {Object.keys(e.payload).length > 0 && (
             <div style={S.eventPayload}>{JSON.stringify(e.payload)}</div>
           )}
@@ -241,22 +273,35 @@ function EventsPanel({ events }: { events: TrackedEvent[] }) {
 function SchemaPanel({ keys, data }: { keys: string[]; data: Record<string, unknown> }) {
   const present = keys.filter((k) => k in data && data[k] !== undefined && data[k] !== '')
   const missing = keys.filter((k) => !(k in data) || data[k] === undefined || data[k] === '')
+  const pct = keys.length > 0 ? Math.round((present.length / keys.length) * 100) : 0
   return (
     <div>
-      <div style={S.label}>
-        Demo data coverage: {present.length}/{keys.length}
+      <div style={S.coverageBar}>
+        <div style={{ ...S.coverageFill, width: `${pct}%` }} />
       </div>
-      {present.map((k) => (
-        <div key={k} style={S.schemaRow}>
-          <span style={S.checkGreen}>✓</span> {k}
+      <div style={S.coverageLabel}>{pct}% fields covered</div>
+      {missing.length > 0 && (
+        <div style={S.schemaSection}>
+          <div style={S.schemaSectionTitle}>Missing</div>
+          {missing.map((k) => (
+            <div key={k} style={S.schemaRow}>
+              <span style={S.schemaDot}>○</span>
+              <span style={S.schemaKey}>{k}</span>
+            </div>
+          ))}
         </div>
-      ))}
-      {missing.map((k) => (
-        <div key={k} style={S.schemaRow}>
-          <span style={S.checkRed}>✗</span> {k}
-          <span style={S.schemaMissing}> — missing in demo data</span>
+      )}
+      {present.length > 0 && (
+        <div style={S.schemaSection}>
+          <div style={S.schemaSectionTitle}>Provided</div>
+          {present.map((k) => (
+            <div key={k} style={S.schemaRow}>
+              <span style={S.schemaDotFilled}>●</span>
+              <span style={S.schemaKey}>{k}</span>
+            </div>
+          ))}
         </div>
-      ))}
+      )}
     </div>
   )
 }
@@ -281,97 +326,164 @@ function formatTime(ts: number) {
 
 // ── Styles ───────────────────────────────────────────────────────────────────
 
-const FONT = 'system-ui, -apple-system, sans-serif'
-const BG = '#1e1e2e'
-const BG_HOVER = '#2a2a3e'
-const ACCENT = '#C2185B'
-const TEXT = '#e0e0e8'
-const TEXT_DIM = '#888896'
-const BORDER = '#333346'
+const FONT = '-apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif'
+const BG = '#161616'
+const BG_ELEVATED = '#1c1c1c'
+const BG_SURFACE = '#232323'
+const TEXT = '#e4e4e4'
+const TEXT_SEC = '#999'
+const TEXT_MUTED = '#666'
+const BORDER = '#2a2a2a'
 
 const S: Record<string, CSSProperties> = {
   fab: {
     position: 'fixed', bottom: 16, right: 16, zIndex: 99999,
-    width: 40, height: 40, borderRadius: 20,
-    background: ACCENT, color: '#fff', border: 'none',
-    fontFamily: FONT, fontSize: 11, fontWeight: 700, letterSpacing: 1,
-    cursor: 'pointer', boxShadow: '0 4px 16px rgba(0,0,0,0.4)',
+    width: 36, height: 36, borderRadius: 10,
+    background: BG_ELEVATED, color: TEXT_SEC, border: `1px solid ${BORDER}`,
+    fontFamily: FONT, fontSize: 11, fontWeight: 500,
+    cursor: 'pointer', boxShadow: '0 2px 12px rgba(0,0,0,0.4)',
     display: 'flex', alignItems: 'center', justifyContent: 'center',
+    transition: 'background 150ms',
   },
   panel: {
     position: 'fixed', bottom: 16, right: 16, zIndex: 99999,
-    width: 320, maxHeight: 420,
+    width: 300, maxHeight: 440,
     background: BG, borderRadius: 12, border: `1px solid ${BORDER}`,
-    boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+    boxShadow: '0 8px 40px rgba(0,0,0,0.55), 0 0 0 0.5px rgba(255,255,255,0.04)',
     fontFamily: FONT, fontSize: 13, color: TEXT,
     display: 'flex', flexDirection: 'column', overflow: 'hidden',
   },
   header: {
     display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-    padding: '10px 14px', borderBottom: `1px solid ${BORDER}`,
+    padding: '10px 12px', borderBottom: `1px solid ${BORDER}`,
   },
-  headerTitle: { fontWeight: 700, fontSize: 13, letterSpacing: 0.5 },
+  headerLeft: {
+    display: 'flex', alignItems: 'center', gap: 8,
+  },
+  headerDot: {
+    width: 7, height: 7, borderRadius: '50%', background: '#4ade80',
+    flexShrink: 0,
+  },
+  headerTitle: { fontWeight: 600, fontSize: 12, color: TEXT_SEC, letterSpacing: 0.2 },
   closeBtn: {
-    background: 'none', border: 'none', color: TEXT_DIM,
-    fontSize: 18, cursor: 'pointer', padding: 0, lineHeight: 1,
+    background: 'none', border: 'none', color: TEXT_MUTED,
+    cursor: 'pointer', padding: 2, lineHeight: 1,
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    borderRadius: 4,
   },
   tabs: {
-    display: 'flex', borderBottom: `1px solid ${BORDER}`,
+    display: 'flex', gap: 0, borderBottom: `1px solid ${BORDER}`,
+    padding: '0 4px',
   },
   tabBtn: {
-    flex: 1, padding: '8px 0', background: 'none',
+    flex: 1, padding: '9px 0 7px', background: 'none',
     borderTop: 'none', borderRight: 'none', borderLeft: 'none',
     borderBottom: '2px solid transparent',
-    color: TEXT_DIM, fontSize: 12, cursor: 'pointer', fontFamily: FONT,
+    color: TEXT_MUTED, fontSize: 11, fontWeight: 500,
+    cursor: 'pointer', fontFamily: FONT, letterSpacing: 0.2,
+    transition: 'color 150ms',
   },
   tabBtnActive: {
-    color: TEXT, borderBottom: `2px solid ${ACCENT}`,
+    color: TEXT, borderBottom: `2px solid ${TEXT_SEC}`,
   },
   body: {
-    padding: '12px 14px', overflow: 'auto', flex: 1, maxHeight: 300,
-  },
-  label: {
-    fontSize: 11, color: TEXT_DIM, textTransform: 'uppercase' as const,
-    letterSpacing: 1, marginBottom: 8,
+    padding: '12px', overflow: 'auto', flex: 1, maxHeight: 320,
   },
   hint: {
-    fontSize: 12, color: TEXT_DIM, marginTop: 10, lineHeight: 1.4,
+    fontSize: 11, color: TEXT_MUTED, marginTop: 10, lineHeight: 1.5,
+    padding: '0 2px',
   },
-  modeGrid: {
-    display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6,
+
+  // Mode panel
+  modeList: {
+    display: 'flex', flexDirection: 'column' as const, gap: 3,
   },
-  modeBtn: {
-    padding: '8px 0', borderRadius: 6,
-    background: BG_HOVER, border: `1px solid ${BORDER}`,
-    color: TEXT, fontSize: 12, cursor: 'pointer', fontFamily: FONT,
+  modeItem: {
+    display: 'flex', alignItems: 'center', gap: 10,
+    padding: '8px 10px', borderRadius: 8,
+    background: 'transparent', border: 'none',
+    color: TEXT_SEC, fontSize: 12, cursor: 'pointer', fontFamily: FONT,
     textTransform: 'capitalize' as const,
+    transition: 'background 150ms',
   },
-  modeBtnActive: {
-    background: ACCENT, border: `1px solid ${ACCENT}`, color: '#fff', fontWeight: 600,
+  modeItemActive: {
+    background: BG_SURFACE, color: TEXT,
   },
+  modeIcon: {
+    width: 24, height: 24, borderRadius: 6,
+    background: BG_SURFACE, display: 'flex', alignItems: 'center', justifyContent: 'center',
+    fontSize: 10, color: TEXT_MUTED, flexShrink: 0,
+  },
+  modeIconActive: {
+    background: '#333', color: TEXT,
+  },
+  modeLabel: {
+    flex: 1, textAlign: 'left' as const,
+  },
+  modeCheck: {
+    fontSize: 6, color: TEXT_SEC,
+  },
+
+  // Events panel
   empty: {
-    color: TEXT_DIM, fontSize: 12, textAlign: 'center' as const, padding: '20px 0',
+    color: TEXT_MUTED, fontSize: 12, textAlign: 'center' as const,
+    padding: '24px 16px', display: 'flex', flexDirection: 'column' as const,
+    alignItems: 'center',
   },
   eventList: {
-    display: 'flex', flexDirection: 'column' as const, gap: 6,
+    display: 'flex', flexDirection: 'column' as const, gap: 4,
   },
   eventRow: {
-    padding: '6px 8px', borderRadius: 6, background: BG_HOVER,
+    padding: '7px 9px', borderRadius: 6, background: BG_ELEVATED,
+    border: `1px solid ${BORDER}`,
+  },
+  eventHeader: {
+    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
   },
   eventName: {
-    fontWeight: 600, fontSize: 12, color: ACCENT,
+    fontWeight: 600, fontSize: 11, color: TEXT,
+    fontFamily: 'ui-monospace, "SF Mono", Monaco, "Cascadia Mono", monospace',
   },
   eventTime: {
-    fontSize: 11, color: TEXT_DIM, marginLeft: 8,
+    fontSize: 10, color: TEXT_MUTED,
   },
   eventPayload: {
-    fontSize: 11, color: TEXT_DIM, marginTop: 4,
-    fontFamily: 'monospace', wordBreak: 'break-all' as const,
+    fontSize: 10, color: TEXT_MUTED, marginTop: 4,
+    fontFamily: 'ui-monospace, "SF Mono", Monaco, "Cascadia Mono", monospace',
+    wordBreak: 'break-all' as const, lineHeight: 1.5,
+  },
+
+  // Schema / Data panel
+  coverageBar: {
+    height: 3, background: BG_SURFACE, borderRadius: 2, overflow: 'hidden',
+    marginBottom: 6,
+  },
+  coverageFill: {
+    height: '100%', background: TEXT_SEC, borderRadius: 2,
+    transition: 'width 300ms',
+  },
+  coverageLabel: {
+    fontSize: 11, color: TEXT_MUTED, marginBottom: 12,
+  },
+  schemaSection: {
+    marginBottom: 10,
+  },
+  schemaSectionTitle: {
+    fontSize: 10, fontWeight: 600, color: TEXT_MUTED, textTransform: 'uppercase' as const,
+    letterSpacing: 0.8, marginBottom: 4,
   },
   schemaRow: {
-    padding: '4px 0', fontSize: 12,
+    display: 'flex', alignItems: 'center', gap: 7,
+    padding: '3px 0', fontSize: 12,
   },
-  checkGreen: { color: '#4ade80' },
-  checkRed: { color: '#f87171' },
-  schemaMissing: { color: TEXT_DIM, fontSize: 11 },
+  schemaDot: {
+    fontSize: 8, color: TEXT_MUTED,
+  },
+  schemaDotFilled: {
+    fontSize: 8, color: TEXT_SEC,
+  },
+  schemaKey: {
+    fontFamily: 'ui-monospace, "SF Mono", Monaco, "Cascadia Mono", monospace',
+    fontSize: 11, color: TEXT_SEC,
+  },
 }
