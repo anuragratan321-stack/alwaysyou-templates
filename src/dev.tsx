@@ -201,9 +201,13 @@ export function PhoneFrame({
   }, [dragging])
 
   // ── iframe setup ───────────────────────────────────────────────────────
-  const onLoad = useCallback(() => {
+  const iframeReady = useRef(false)
+
+  const setupIframe = useCallback(() => {
+    if (iframeReady.current) return
     const doc = iframeRef.current?.contentDocument
-    if (!doc) return
+    if (!doc?.body) return
+    iframeReady.current = true
 
     const parentStyles = document.querySelectorAll('style, link[rel="stylesheet"]')
     parentStyles.forEach((node) => doc.head.appendChild(node.cloneNode(true)))
@@ -230,8 +234,11 @@ export function PhoneFrame({
     doc.documentElement.style.height = '100%'
 
     setIframeBody(doc.body)
-    return () => observer.disconnect()
   }, [])
+
+  // SSR hydration: the iframe's load event may fire before React attaches
+  // onLoad. This effect catches that case by checking after mount.
+  useEffect(() => { setupIframe() }, [setupIframe])
 
   // ── Frame chrome ───────────────────────────────────────────────────────
   const isResponsive = device.category === 'responsive'
@@ -287,7 +294,7 @@ export function PhoneFrame({
         }}>
           <iframe
             ref={iframeRef}
-            onLoad={onLoad}
+            onLoad={setupIframe}
             title="PhoneFrame"
             style={{
               width: device.width, height: device.height,
