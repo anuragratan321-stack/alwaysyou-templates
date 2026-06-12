@@ -156,6 +156,15 @@ export function PhoneFrame({
 
   useEffect(() => subscribeDeviceChange(setDevice), [])
 
+  // ── Viewport measurement (deferred to avoid hydration mismatch) ────────
+  const [viewport, setViewport] = useState({ w: 1920, h: 1080 })
+  useEffect(() => {
+    const update = () => setViewport({ w: window.innerWidth, h: window.innerHeight })
+    update()
+    window.addEventListener('resize', update)
+    return () => window.removeEventListener('resize', update)
+  }, [])
+
   // ── Drag resize ────────────────────────────────────────────────────────
   const [dragging, setDragging] = useState<'right' | 'bottom' | 'corner' | null>(null)
   const dragRef = useRef({ x: 0, y: 0, w: 0, h: 0 })
@@ -231,9 +240,7 @@ export function PhoneFrame({
   const frameW = device.width + bezelW * 2
   const frameH = device.height + bezelW * 2
 
-  const vw = typeof window !== 'undefined' ? window.innerWidth : 1920
-  const vh = typeof window !== 'undefined' ? window.innerHeight : 1080
-  const scale = Math.min(1, (vw - 120) / frameW, (vh - 120) / frameH)
+  const scale = Math.min(1, (viewport.w - 120) / frameW, (viewport.h - 120) / frameH)
   const visW = Math.round(frameW * scale)
   const visH = Math.round(frameH * scale)
 
