@@ -85,24 +85,85 @@ export function AlwaysYouProvider({
 }
 
 // ── PhoneFrame ───────────────────────────────────────────────────────────────
+// Uses an <iframe> so the template gets a true device-sized viewport.
+// 100vw/100vh, window.innerWidth/Height, and `fixed inset-0` all resolve
+// against the phone dimensions (390×844), not the desktop browser.
 
-export function PhoneFrame({ children }: { children: ReactNode }) {
+export function PhoneFrame({
+  children,
+  width = 390,
+  height = 844,
+}: {
+  children: ReactNode
+  width?: number
+  height?: number
+}) {
+  const iframeRef = useRef<HTMLIFrameElement | null>(null)
+  const [iframeBody, setIframeBody] = useState<HTMLElement | null>(null)
+
+  const onLoad = useCallback(() => {
+    const doc = iframeRef.current?.contentDocument
+    if (!doc) return
+
+    // Copy all stylesheets from the parent into the iframe
+    const parentStyles = document.querySelectorAll('style, link[rel="stylesheet"]')
+    parentStyles.forEach((node) => {
+      doc.head.appendChild(node.cloneNode(true))
+    })
+
+    // Watch for new stylesheets added to parent <head> (HMR, dynamic imports)
+    const observer = new MutationObserver((mutations) => {
+      for (const m of mutations) {
+        m.addedNodes.forEach((node) => {
+          if (
+            node instanceof HTMLStyleElement ||
+            (node instanceof HTMLLinkElement && node.rel === 'stylesheet')
+          ) {
+            doc.head.appendChild(node.cloneNode(true))
+          }
+        })
+      }
+    })
+    observer.observe(document.head, { childList: true })
+
+    // Reset iframe body defaults
+    doc.body.style.margin = '0'
+    doc.body.style.padding = '0'
+    doc.body.style.overflow = 'auto'
+    doc.body.style.width = '100%'
+    doc.body.style.height = '100%'
+    doc.documentElement.style.height = '100%'
+
+    setIframeBody(doc.body)
+
+    return () => observer.disconnect()
+  }, [])
+
   return (
     <div style={{
       minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
       background: '#1c1c1e', padding: '24px',
     }}>
       <div style={{
-        width: 390, height: 844, maxHeight: 'calc(100vh - 48px)',
+        width: width + 20, height: Math.min(height + 20, (typeof window !== 'undefined' ? window.innerHeight : 900) - 48),
         borderRadius: 48, overflow: 'hidden', position: 'relative',
         border: '10px solid #2a2a2e',
         boxShadow: '0 24px 64px rgba(0,0,0,0.5)',
         background: '#000',
-        transform: 'translateZ(0)',
       }}>
-        <div style={{ width: '100%', height: '100%', overflow: 'auto' }}>
-          {children}
-        </div>
+        <iframe
+          ref={iframeRef}
+          onLoad={onLoad}
+          title="PhoneFrame"
+          style={{
+            width, height,
+            border: 'none',
+            display: 'block',
+            background: '#fff',
+          }}
+          srcDoc="<!DOCTYPE html><html style='height:100%'><head><meta charset='utf-8'></head><body style='margin:0;height:100%'></body></html>"
+        />
+        {iframeBody && createPortal(children, iframeBody)}
       </div>
     </div>
   )

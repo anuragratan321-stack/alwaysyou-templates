@@ -14,8 +14,10 @@ export declare function AlwaysYouProvider({ data, mode, schema, onTrack, childre
     schema?: SchemaJson;
     onTrack?: TrackFn;
     children: ReactNode;
-}): import("react").JSX.Element;
-export declare function PhoneFrame({ children }: {
+}): import("react/jsx-runtime").JSX.Element;
+export declare function PhoneFrame({ children, width, height, }: {
     children: ReactNode;
-}): import("react").JSX.Element;
+    width?: number;
+    height?: number;
+}): import("react/jsx-runtime").JSX.Element;
 export {};
