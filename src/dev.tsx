@@ -61,6 +61,26 @@ function subscribeDeviceChange(fn: DeviceListener): () => void {
   return () => { deviceListeners.delete(fn) }
 }
 
+// ── iframe srcDoc — matches mobile browser viewport behavior ───────────────
+
+const IFRAME_SRCDOC = `<!DOCTYPE html>
+<html style="height:100%">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<style>
+*,*::before,*::after{box-sizing:border-box}
+html,body{height:100%;margin:0;padding:0}
+body{overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;overscroll-behavior:none}
+html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
+/* Hide scrollbar to match mobile overlay scrollbar (zero width) */
+::-webkit-scrollbar{display:none}
+*{scrollbar-width:none}
+</style>
+</head>
+<body></body>
+</html>`
+
 // ── AlwaysYouProvider ────────────────────────────────────────────────────────
 
 export function AlwaysYouProvider({
@@ -226,13 +246,6 @@ export function PhoneFrame({
     })
     observer.observe(document.head, { childList: true })
 
-    doc.body.style.margin = '0'
-    doc.body.style.padding = '0'
-    doc.body.style.overflow = 'auto'
-    doc.body.style.width = '100%'
-    doc.body.style.height = '100%'
-    doc.documentElement.style.height = '100%'
-
     setIframeBody(doc.body)
   }, [])
 
@@ -301,7 +314,7 @@ export function PhoneFrame({
               border: 'none', display: 'block', background: '#fff',
               pointerEvents: dragging ? 'none' : 'auto',
             }}
-            srcDoc="<!DOCTYPE html><html style='height:100%'><head><meta charset='utf-8'></head><body style='margin:0;height:100%'></body></html>"
+            srcDoc={IFRAME_SRCDOC}
           />
           {iframeBody && createPortal(children, iframeBody)}
         </div>
