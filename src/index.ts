@@ -261,19 +261,32 @@ export function useFont(fonts: string | string[]): void {
     const list = Array.isArray(fonts) ? fonts : [fonts]
     if (list.length === 0) return
 
-    const families = list.map((f) => {
+    const families: string[] = []
+    const needsItalic: string[] = []
+
+    list.forEach((f) => {
       const colon = f.indexOf(':')
       const name = (colon > -1 ? f.slice(0, colon) : f).trim().replace(/ /g, '+')
-      const spec = colon > -1 ? f.slice(colon) : ''
-      return `family=${name}${spec}`
+      if (colon > -1) {
+        families.push(`family=${name}${f.slice(colon)}`)
+      } else {
+        families.push(`family=${name}`)
+        needsItalic.push(name)
+      }
     })
 
     const url = `https://fonts.googleapis.com/css2?${families.join('&')}&display=swap`
 
     const existing = document.head.querySelectorAll<HTMLLinkElement>('link[rel="stylesheet"]')
-    for (let i = 0; i < existing.length; i++) {
-      if (existing[i].href === url) return
+
+    function hasLink(href: string): boolean {
+      for (let i = 0; i < existing.length; i++) {
+        if (existing[i].href === href) return true
+      }
+      return false
     }
+
+    if (hasLink(url)) return
 
     const frag = document.createDocumentFragment()
 
@@ -295,6 +308,20 @@ export function useFont(fonts: string | string[]): void {
     link.rel = 'stylesheet'
     link.href = url
     frag.appendChild(link)
+
+    // Auto-load italic for fonts without an explicit axis spec.
+    // Each gets its own <link> so a 400 from a font without italic
+    // doesn't block other fonts.
+    needsItalic.forEach((name) => {
+      const italicUrl = `https://fonts.googleapis.com/css2?family=${name}:ital@1&display=swap`
+      if (!hasLink(italicUrl)) {
+        const il = document.createElement('link')
+        il.rel = 'stylesheet'
+        il.href = italicUrl
+        frag.appendChild(il)
+      }
+    })
+
     document.head.appendChild(frag)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key])
