@@ -10,7 +10,8 @@
     "strict": true,
     "skipLibCheck": true,
     "esModuleInterop": true,
-    "lib": ["ES2020", "DOM", "DOM.Iterable"]
+    "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    "types": ["node", "react", "react-dom"]
   },
   "include": ["src"]
 }

@@ -43,6 +43,7 @@
     "esbuild": { "optional": true }
   },
   "devDependencies": {
+    "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "react": "^19.0.0",
