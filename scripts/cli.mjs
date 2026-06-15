@@ -8,6 +8,7 @@ AlwaysYou Template CLI
 Usage: alwaysyou <command> [options]
 
 Commands:
+  dev               Start dev server with live preview + Template Studio
   validate          Check your template for errors before uploading
   pack              Create a ZIP ready for upload
   generate-types    Generate TypeScript types from schema.json
@@ -15,17 +16,25 @@ Commands:
 
 Options:
   --dir <path>      Template directory (default: ./template)
+  --port <number>   Dev server port (default: 4321)
 
 Examples:
+  npx alwaysyou dev
+  npx alwaysyou dev --dir ./my-template --port 3000
   npx alwaysyou validate
   npx alwaysyou pack --dir ./my-template
-  npx alwaysyou generate-types
 `.trim()
 
 async function main() {
   const dir = resolveDir(args)
 
   switch (command) {
+    case 'dev': {
+      const mod = await import('./dev.mjs')
+      const exitCode = await mod.run(dir, args)
+      if (typeof exitCode === 'number') process.exit(exitCode)
+      break
+    }
     case 'validate': {
       const mod = await import('./validate.mjs')
       process.exit(await mod.run(dir))
