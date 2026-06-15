@@ -74,12 +74,7 @@ export function useNavigation(screens, options) {
         isLast: idx === screens.length - 1,
     };
 }
-// ── useAudio() — background music with template-controlled playback ─────────
-//
-// The hook creates the Audio element and unlocks the browser AudioContext on the
-// first user gesture, but does NOT auto-play. Playback starts only when the
-// template calls audio.play(). If play() is called before the context is
-// unlocked, it is queued and fires as soon as the next gesture unlocks it.
+// ── useAudio() — background music with autoplay deferral ────────────────────
 export function useAudio(url, options) {
     const ctx = useContext(AlwaysYouContext);
     const emit = ctx ? ctx.track : windowTrack;
@@ -87,51 +82,28 @@ export function useAudio(url, options) {
     const [playing, setPlaying] = useState(false);
     const [muted, setMuted] = useState(false);
     const trackedStart = useRef(false);
-    const unlocked = useRef(false);
-    const pendingPlay = useRef(false);
     useEffect(() => {
         if (!url)
             return;
         const a = new Audio(url);
         a.loop = options?.loop ?? true;
         a.volume = options?.volume ?? 0.45;
-        a.preload = 'auto';
         audioRef.current = a;
-        const unlock = () => {
-            if (unlocked.current)
-                return;
-            unlocked.current = true;
-            // Create + resume a silent AudioContext to satisfy browser autoplay policy
-            const ac = new AudioContext();
-            if (ac.state === 'suspended')
-                ac.resume().catch(() => { });
-            // If the template already called play() before unlock, start now
-            if (pendingPlay.current) {
-                pendingPlay.current = false;
-                a.play().then(() => {
-                    setPlaying(true);
-                    if (!trackedStart.current) {
-                        trackedStart.current = true;
-                        emit('audio_started', { url });
-                    }
-                }).catch(() => { });
+        const start = () => {
+            a.play().catch(() => { });
+            setPlaying(true);
+            if (!trackedStart.current) {
+                trackedStart.current = true;
+                emit('audio_started', { url });
             }
-            window.removeEventListener('pointerdown', unlock);
-            window.removeEventListener('touchstart', unlock);
-            window.removeEventListener('keydown', unlock);
+            window.removeEventListener('pointerdown', start);
         };
-        window.addEventListener('pointerdown', unlock);
-        window.addEventListener('touchstart', unlock);
-        window.addEventListener('keydown', unlock);
+        window.addEventListener('pointerdown', start);
         return () => {
             a.pause();
             audioRef.current = null;
             setPlaying(false);
-            unlocked.current = false;
-            pendingPlay.current = false;
-            window.removeEventListener('pointerdown', unlock);
-            window.removeEventListener('touchstart', unlock);
-            window.removeEventListener('keydown', unlock);
+            window.removeEventListener('pointerdown', start);
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [url]);
@@ -140,28 +112,7 @@ export function useAudio(url, options) {
             audioRef.current.muted = muted;
     }, [muted]);
     const toggle = useCallback(() => setMuted((m) => !m), []);
-    const play = useCallback(() => {
-        const a = audioRef.current;
-        if (!a)
-            return;
-        if (!unlocked.current) {
-            // Browser hasn't been unlocked yet — queue for when it is
-            pendingPlay.current = true;
-            return;
-        }
-        a.play().then(() => {
-            setPlaying(true);
-            if (!trackedStart.current) {
-                trackedStart.current = true;
-                emit('audio_started', { url });
-            }
-        }).catch(() => { });
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [url]);
-    const pause = useCallback(() => {
-        audioRef.current?.pause();
-        setPlaying(false);
-        pendingPlay.current = false;
-    }, []);
+    const play = useCallback(() => { audioRef.current?.play().catch(() => { }); setPlaying(true); }, []);
+    const pause = useCallback(() => { audioRef.current?.pause(); setPlaying(false); }, []);
     return { playing: playing && !muted, muted, toggle, play, pause };
 }
