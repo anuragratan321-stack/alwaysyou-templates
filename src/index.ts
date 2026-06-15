@@ -183,3 +183,76 @@ export function useAudio(
 
   return { playing: playing && !muted, muted, toggle, play, pause }
 }
+
+// ── useFont() — load Google Fonts into the document ─────────────────────────
+
+export function useFont(fonts: string | string[]): void {
+  const key = Array.isArray(fonts) ? fonts.join(',') : fonts
+
+  useEffect(() => {
+    const list = Array.isArray(fonts) ? fonts : [fonts]
+    if (list.length === 0) return
+
+    const families = list.map((f) => {
+      const colon = f.indexOf(':')
+      const name = (colon > -1 ? f.slice(0, colon) : f).trim().replace(/ /g, '+')
+      const spec = colon > -1 ? f.slice(colon) : ''
+      return `family=${name}${spec}`
+    })
+
+    const url = `https://fonts.googleapis.com/css2?${families.join('&')}&display=swap`
+
+    const existing = document.head.querySelectorAll<HTMLLinkElement>('link[rel="stylesheet"]')
+    for (let i = 0; i < existing.length; i++) {
+      if (existing[i].href === url) return
+    }
+
+    const frag = document.createDocumentFragment()
+
+    if (!document.querySelector('link[rel="preconnect"][href="https://fonts.googleapis.com"]')) {
+      const pc = document.createElement('link')
+      pc.rel = 'preconnect'
+      pc.href = 'https://fonts.googleapis.com'
+      frag.appendChild(pc)
+    }
+    if (!document.querySelector('link[rel="preconnect"][href="https://fonts.gstatic.com"]')) {
+      const pc = document.createElement('link')
+      pc.rel = 'preconnect'
+      pc.href = 'https://fonts.gstatic.com'
+      pc.crossOrigin = 'anonymous'
+      frag.appendChild(pc)
+    }
+
+    const link = document.createElement('link')
+    link.rel = 'stylesheet'
+    link.href = url
+    frag.appendChild(link)
+    document.head.appendChild(frag)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key])
+}
+
+// ── usePopupTrigger() — tell the shell which screen to show a popup on ──────
+
+export function usePopupTrigger(type: 'feedback' | 'response'): void {
+  const fired = useRef(false)
+
+  useEffect(() => {
+    if (fired.current) return
+    fired.current = true
+    if (typeof window !== 'undefined') {
+      const eventName = type === 'feedback' ? 'ay:show-feedback' : 'ay:show-response'
+      window.dispatchEvent(new CustomEvent(eventName))
+    }
+  }, [type])
+}
+
+// ── Session variables — generic key-value data per session ──────────────────
+
+export function setSessionVariable(key: string, value: unknown): void {
+  windowTrack('session_variable', { key, value, _merge: 'set' })
+}
+
+export function appendSessionVariable(key: string, value: unknown): void {
+  windowTrack('session_variable', { key, value, _merge: 'append' })
+}

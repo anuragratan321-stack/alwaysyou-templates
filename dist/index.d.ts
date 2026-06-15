@@ -31,3 +31,7 @@ export declare function useAudio(url?: string, options?: {
     play: () => void;
     pause: () => void;
 };
+export declare function useFont(fonts: string | string[]): void;
+export declare function usePopupTrigger(type: 'feedback' | 'response'): void;
+export declare function setSessionVariable(key: string, value: unknown): void;
+export declare function appendSessionVariable(key: string, value: unknown): void;
