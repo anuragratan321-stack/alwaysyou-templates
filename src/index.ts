@@ -91,6 +91,8 @@ export function useNavigation<T extends string>(
   go: (to: T) => void
   next: () => void
   back: () => void
+  replay: () => void
+  replayCount: number
   isFirst: boolean
   isLast: boolean
 } {
@@ -98,8 +100,12 @@ export function useNavigation<T extends string>(
     throw new Error('useNavigation: screens array must not be empty')
   }
 
+  const ctx = useContext(AlwaysYouContext)
+  const emit = ctx ? ctx.track : windowTrack
+
   const initial = options?.initial ?? screens[0]
   const [idx, setIdx] = useState(() => Math.max(0, screens.indexOf(initial)))
+  const [replays, setReplays] = useState(0)
 
   useScreen(screens[idx])
 
@@ -116,12 +122,21 @@ export function useNavigation<T extends string>(
   const next = useCallback(() => setIdx((i) => Math.min(i + 1, screens.length - 1)), [screens.length])
   const back = useCallback(() => setIdx((i) => Math.max(i - 1, 0)), [screens.length])
 
+  const replay = useCallback(() => {
+    setIdx(0)
+    setReplays((c) => c + 1)
+    emit('replay', { from_screen: screens[idx], replay_number: replays + 1 })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [emit, screens.length, idx, replays])
+
   return {
     screen: screens[idx],
     index: idx,
     go,
     next,
     back,
+    replay,
+    replayCount: replays,
     isFirst: idx === 0,
     isLast: idx === screens.length - 1,
   }
@@ -209,18 +224,16 @@ export function useAudio(
   const play = useCallback(() => {
     const a = audioRef.current
     if (!a) return
-    if (!unlocked.current) {
-      // Browser hasn't been unlocked yet — queue for when it is
-      pendingPlay.current = true
-      return
-    }
     a.play().then(() => {
+      unlocked.current = true
       setPlaying(true)
       if (!trackedStart.current) {
         trackedStart.current = true
         emit('audio_started', { url })
       }
-    }).catch(() => {})
+    }).catch(() => {
+      pendingPlay.current = true
+    })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [url])
 
@@ -230,7 +243,155 @@ export function useAudio(
     pendingPlay.current = false
   }, [])
 
-  return { playing: playing && !muted, muted, toggle, play, pause }
+  return { playing, muted, toggle, play, pause }
+}
+
+// ── useSessionData() — store arbitrary key-value pairs on the session ────────
+//
+// Templates call session.set("Wish", "I want a teddy bear") to attach data to
+// the current session. The data appears in the sender's session summary email
+// and admin analytics. Keys are human-readable labels, values are strings.
+
+export function useSessionData(): {
+  set: (key: string, value: string) => void
+} {
+  const ctx = useContext(AlwaysYouContext)
+  const emit = ctx ? ctx.track : windowTrack
+
+  const set = useCallback(
+    (key: string, value: string) => {
+      emit('session_set_data', { key, value })
+    },
+    [emit],
+  )
+
+  return { set }
+}
+
+// ── useQuiz() — first-class Quiz field hook ─────────────────────────────────
+//
+// Reads questions from data[fieldKey], manages answer state, and auto-reports
+// structured results to the session when all questions are answered.
+//
+//   const quiz = useQuiz('relationship_quiz')
+//   quiz.questions    — QuizQuestion[] from template data
+//   quiz.answer(qi, oi) — select option oi for question qi
+//   quiz.answers      — { [questionIndex]: selectedOptionIndex }
+//   quiz.score        — { correct: 2, total: 3 }
+//   quiz.isComplete   — true when every question has an answer
+//   quiz.submitted    — true after results auto-reported to session
+
+type QuizQuestionData = {
+  id: string
+  text: string
+  options: string[]
+  correctIndex: number
+  [key: string]: unknown
+}
+
+export function useQuiz(fieldKey: string): {
+  questions: QuizQuestionData[]
+  answer: (questionIndex: number, optionIndex: number) => void
+  answers: Record<number, number>
+  score: { correct: number; total: number }
+  isComplete: boolean
+  submitted: boolean
+} {
+  const ctx = useContext(AlwaysYouContext)
+  const data = ctx ? ctx.data : windowData()
+  const emit = ctx ? ctx.track : windowTrack
+
+  const questions = (Array.isArray(data[fieldKey]) ? data[fieldKey] : []) as QuizQuestionData[]
+  const [answers, setAnswers] = useState<Record<number, number>>({})
+  const [submitted, setSubmitted] = useState(false)
+  const submitGuard = useRef(false)
+
+  const answer = useCallback((qi: number, oi: number) => {
+    setAnswers((prev) => ({ ...prev, [qi]: oi }))
+  }, [])
+
+  const total = questions.length
+  const isComplete = total > 0 && Object.keys(answers).length >= total
+
+  const correct = (() => {
+    let c = 0
+    for (const [qi, oi] of Object.entries(answers)) {
+      if (questions[Number(qi)]?.correctIndex === oi) c++
+    }
+    return c
+  })()
+
+  useEffect(() => {
+    if (!isComplete || submitGuard.current) return
+    submitGuard.current = true
+    setSubmitted(true)
+
+    emit('quiz_complete', {
+      field_key: fieldKey,
+      results: {
+        score: `${correct}/${total}`,
+        questions: questions.map((q, i) => ({
+          text: q.text,
+          options: q.options,
+          correctIndex: q.correctIndex,
+          selectedIndex: answers[i] ?? -1,
+        })),
+      },
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isComplete])
+
+  return {
+    questions,
+    answer,
+    answers,
+    score: { correct, total },
+    isComplete,
+    submitted,
+  }
+}
+
+// ── useQuizResult() — manual quiz reporting (non-schema quizzes) ────────────
+//
+// For custom quizzes not defined as a Quiz schema field. Prefer useQuiz() for
+// schema-based quiz fields — it handles everything automatically.
+
+export type QuizResultQuestion = {
+  text: string
+  options: string[]
+  correctIndex: number
+  selectedIndex: number
+}
+
+export function useQuizResult(fieldKey?: string): {
+  submit: (questions: QuizResultQuestion[]) => void
+} {
+  const ctx = useContext(AlwaysYouContext)
+  const emit = ctx ? ctx.track : windowTrack
+  const didSubmit = useRef(false)
+
+  const submit = useCallback(
+    (questions: QuizResultQuestion[]) => {
+      if (didSubmit.current) return
+      didSubmit.current = true
+      const correct = questions.filter((q) => q.selectedIndex === q.correctIndex).length
+      emit('quiz_complete', {
+        field_key: fieldKey,
+        results: {
+          score: `${correct}/${questions.length}`,
+          questions: questions.map((q) => ({
+            text: q.text,
+            options: q.options,
+            correctIndex: q.correctIndex,
+            selectedIndex: q.selectedIndex,
+          })),
+        },
+      })
+    },
+    [emit, fieldKey],
+  )
+
+  return { submit }
 }
 
 // ── usePopupTrigger() — tell the shell which screen to show a popup on ──────

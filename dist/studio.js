@@ -37,11 +37,8 @@ function findStudioBundle() {
     }
     return null;
 }
-let cachedBundle = null;
 function getBundle() {
-    if (!cachedBundle)
-        cachedBundle = findStudioBundle();
-    return cachedBundle;
+    return findStudioBundle();
 }
 function buildHtml(slug) {
     return `<!doctype html>
@@ -60,6 +57,96 @@ function buildHtml(slug) {
 <script type="module" src="/studio/bundle.js"></script>
 </body>
 </html>`;
+}
+const TYPE_MAP = {
+    text: 'string', textarea: 'string', date: 'string', number: 'number',
+    image: 'string', image_array: 'string[]', video: 'string',
+    audio: '{ url: string }', color: 'string', toggle: 'boolean',
+    quiz: 'QuizQuestion[]', select: 'string',
+};
+function capitalize(s) {
+    return s.charAt(0).toUpperCase() + s.slice(1).replace(/-(\w)/g, (_, c) => c.toUpperCase());
+}
+function fieldTsType(field, parent, ifaces) {
+    if (field.type === 'select' && field.options?.length) {
+        return field.options.map(o => `'${o.replace(/'/g, "\\'")}'`).join(' | ');
+    }
+    if (field.type === 'group' && field.fields) {
+        const name = parent + capitalize(field.key);
+        buildInterface(field.fields, name, ifaces, true);
+        return name;
+    }
+    if (field.type === 'group_array' && field.fields) {
+        const name = parent + capitalize(field.key) + 'Item';
+        buildInterface(field.fields, name, ifaces, true);
+        return `${name}[]`;
+    }
+    return TYPE_MAP[field.type] || 'unknown';
+}
+function buildInterface(fields, name, ifaces, allReq = false) {
+    const lines = [];
+    for (const f of fields) {
+        if (!f.key)
+            continue;
+        const ts = fieldTsType(f, name, ifaces);
+        const opt = !allReq && !f.required ? '?' : '';
+        const key = /^[a-zA-Z_$][a-zA-Z0-9_$]*$/.test(f.key) ? f.key : `'${f.key}'`;
+        if (f.label)
+            lines.push(`/** ${f.label} */`);
+        lines.push(`${key}${opt}: ${ts}`);
+    }
+    ifaces.push({ name, lines });
+}
+function generateQuizType(quizFields) {
+    const merged = {};
+    for (const f of quizFields) {
+        if (f.config) {
+            for (const [k, v] of Object.entries(f.config)) {
+                if (v)
+                    merged[k] = true;
+            }
+        }
+    }
+    let t = `export interface QuizQuestion {\n`;
+    t += `  id: string\n`;
+    t += `  text: string\n`;
+    t += `  options: string[]\n`;
+    t += `  correctIndex: number\n`;
+    if (merged.allowMultipleCorrect)
+        t += `  correctIndices?: number[]\n`;
+    if (merged.allowHints)
+        t += `  hint?: string\n`;
+    if (merged.allowExplanations)
+        t += `  explanation?: string\n`;
+    if (merged.allowImages)
+        t += `  image?: string\n`;
+    if (merged.allowPoints)
+        t += `  points?: number\n`;
+    t += `}\n\n`;
+    return t;
+}
+function generateTypes(schema) {
+    const allFields = schema.sections.flatMap(s => s.fields ?? []);
+    if (allFields.length === 0)
+        return '';
+    const ifaces = [];
+    const quizFields = allFields.filter(f => f.type === 'quiz');
+    const needsQuiz = quizFields.length > 0 || allFields.some(f => (f.fields ?? []).some(sf => sf.type === 'quiz'));
+    buildInterface(allFields, 'TemplateFields', ifaces);
+    const imports = ['PlatformContext'];
+    let out = `// Auto-generated from schema.json — do not edit.\n`;
+    out += `// Regenerate: npx alwaysyou generate-types\n\n`;
+    out += `import type { ${imports.join(', ')} } from '@alwaysyou/templates'\n\n`;
+    if (needsQuiz) {
+        out += generateQuizType(quizFields);
+    }
+    for (const iface of ifaces) {
+        out += `export interface ${iface.name} {\n`;
+        out += iface.lines.map(l => '  ' + l).join('\n');
+        out += `\n}\n\n`;
+    }
+    out += `export type TypedTemplateData = TemplateFields & PlatformContext\n`;
+    return out;
 }
 export function createStudioHandler(options) {
     const templateDir = resolve(options.dir);
@@ -103,8 +190,6 @@ export function createStudioHandler(options) {
                 const payload = await request.json();
                 const errors = [];
                 if (payload.schema) {
-                    if (payload.schema.version !== '2')
-                        errors.push('schema: version must be "2"');
                     if (!Array.isArray(payload.schema.sections))
                         errors.push('schema: sections must be an array');
                 }
@@ -117,6 +202,16 @@ export function createStudioHandler(options) {
                         writeFileSync(join(templateDir, key + '.json'), JSON.stringify(payload[key], null, 2) + '\n');
                         written.push(key + '.json');
                     }
+                }
+                if (payload.schema && Array.isArray(payload.schema.sections)) {
+                    try {
+                        const types = generateTypes(payload.schema);
+                        if (types) {
+                            writeFileSync(join(templateDir, 'data.d.ts'), types);
+                            written.push('data.d.ts');
+                        }
+                    }
+                    catch { }
                 }
                 return Response.json({ ok: true, written });
             }

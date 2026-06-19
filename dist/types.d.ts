@@ -8,6 +8,11 @@ export type QuizQuestion = {
     text: string;
     options: string[];
     correctIndex: number;
+    correctIndices?: number[];
+    hint?: string;
+    explanation?: string;
+    image?: string;
+    points?: number;
 };
 export type CapabilitiesAPI = {
     guestbook: string;

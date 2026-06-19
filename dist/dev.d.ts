@@ -14,10 +14,10 @@ export declare function AlwaysYouProvider({ data, mode, schema, onTrack, childre
     schema?: SchemaJson;
     onTrack?: TrackFn;
     children: ReactNode;
-}): import("react").JSX.Element;
+}): import("react/jsx-runtime").JSX.Element;
 export declare function PhoneFrame({ children, width: initialWidth, height: initialHeight, }: {
     children: ReactNode;
     width?: number;
     height?: number;
-}): import("react").JSX.Element;
+}): import("react/jsx-runtime").JSX.Element;
 export {};

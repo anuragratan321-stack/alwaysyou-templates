@@ -51,8 +51,11 @@ export function useNavigation(screens, options) {
     if (screens.length === 0) {
         throw new Error('useNavigation: screens array must not be empty');
     }
+    const ctx = useContext(AlwaysYouContext);
+    const emit = ctx ? ctx.track : windowTrack;
     const initial = options?.initial ?? screens[0];
     const [idx, setIdx] = useState(() => Math.max(0, screens.indexOf(initial)));
+    const [replays, setReplays] = useState(0);
     useScreen(screens[idx]);
     const go = useCallback((to) => {
         const i = screens.indexOf(to);
@@ -64,12 +67,20 @@ export function useNavigation(screens, options) {
     [screens.length]);
     const next = useCallback(() => setIdx((i) => Math.min(i + 1, screens.length - 1)), [screens.length]);
     const back = useCallback(() => setIdx((i) => Math.max(i - 1, 0)), [screens.length]);
+    const replay = useCallback(() => {
+        setIdx(0);
+        setReplays((c) => c + 1);
+        emit('replay', { from_screen: screens[idx], replay_number: replays + 1 });
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [emit, screens.length, idx, replays]);
     return {
         screen: screens[idx],
         index: idx,
         go,
         next,
         back,
+        replay,
+        replayCount: replays,
         isFirst: idx === 0,
         isLast: idx === screens.length - 1,
     };
@@ -144,18 +155,16 @@ export function useAudio(url, options) {
         const a = audioRef.current;
         if (!a)
             return;
-        if (!unlocked.current) {
-            // Browser hasn't been unlocked yet — queue for when it is
-            pendingPlay.current = true;
-            return;
-        }
         a.play().then(() => {
+            unlocked.current = true;
             setPlaying(true);
             if (!trackedStart.current) {
                 trackedStart.current = true;
                 emit('audio_started', { url });
             }
-        }).catch(() => { });
+        }).catch(() => {
+            pendingPlay.current = true;
+        });
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [url]);
     const pause = useCallback(() => {
@@ -163,7 +172,93 @@ export function useAudio(url, options) {
         setPlaying(false);
         pendingPlay.current = false;
     }, []);
-    return { playing: playing && !muted, muted, toggle, play, pause };
+    return { playing, muted, toggle, play, pause };
+}
+// ── useSessionData() — store arbitrary key-value pairs on the session ────────
+//
+// Templates call session.set("Wish", "I want a teddy bear") to attach data to
+// the current session. The data appears in the sender's session summary email
+// and admin analytics. Keys are human-readable labels, values are strings.
+export function useSessionData() {
+    const ctx = useContext(AlwaysYouContext);
+    const emit = ctx ? ctx.track : windowTrack;
+    const set = useCallback((key, value) => {
+        emit('session_set_data', { key, value });
+    }, [emit]);
+    return { set };
+}
+export function useQuiz(fieldKey) {
+    const ctx = useContext(AlwaysYouContext);
+    const data = ctx ? ctx.data : windowData();
+    const emit = ctx ? ctx.track : windowTrack;
+    const questions = (Array.isArray(data[fieldKey]) ? data[fieldKey] : []);
+    const [answers, setAnswers] = useState({});
+    const [submitted, setSubmitted] = useState(false);
+    const submitGuard = useRef(false);
+    const answer = useCallback((qi, oi) => {
+        setAnswers((prev) => ({ ...prev, [qi]: oi }));
+    }, []);
+    const total = questions.length;
+    const isComplete = total > 0 && Object.keys(answers).length >= total;
+    const correct = (() => {
+        let c = 0;
+        for (const [qi, oi] of Object.entries(answers)) {
+            if (questions[Number(qi)]?.correctIndex === oi)
+                c++;
+        }
+        return c;
+    })();
+    useEffect(() => {
+        if (!isComplete || submitGuard.current)
+            return;
+        submitGuard.current = true;
+        setSubmitted(true);
+        emit('quiz_complete', {
+            field_key: fieldKey,
+            results: {
+                score: `${correct}/${total}`,
+                questions: questions.map((q, i) => ({
+                    text: q.text,
+                    options: q.options,
+                    correctIndex: q.correctIndex,
+                    selectedIndex: answers[i] ?? -1,
+                })),
+            },
+        });
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isComplete]);
+    return {
+        questions,
+        answer,
+        answers,
+        score: { correct, total },
+        isComplete,
+        submitted,
+    };
+}
+export function useQuizResult(fieldKey) {
+    const ctx = useContext(AlwaysYouContext);
+    const emit = ctx ? ctx.track : windowTrack;
+    const didSubmit = useRef(false);
+    const submit = useCallback((questions) => {
+        if (didSubmit.current)
+            return;
+        didSubmit.current = true;
+        const correct = questions.filter((q) => q.selectedIndex === q.correctIndex).length;
+        emit('quiz_complete', {
+            field_key: fieldKey,
+            results: {
+                score: `${correct}/${questions.length}`,
+                questions: questions.map((q) => ({
+                    text: q.text,
+                    options: q.options,
+                    correctIndex: q.correctIndex,
+                    selectedIndex: q.selectedIndex,
+                })),
+            },
+        });
+    }, [emit, fieldKey]);
+    return { submit };
 }
 // ── usePopupTrigger() — tell the shell which screen to show a popup on ──────
 export function usePopupTrigger(type) {

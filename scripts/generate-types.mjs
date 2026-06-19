@@ -104,17 +104,21 @@ export async function run(dir) {
   }
 
   const interfaces = []
-  const needsQuiz = allFields.some(f => f.type === 'quiz' || hasNestedType(f, 'quiz'))
+  const quizFields = allFields.filter(f => f.type === 'quiz')
+  const needsQuiz = quizFields.length > 0 || allFields.some(f => hasNestedType(f, 'quiz'))
 
   generateInterface(allFields, 'TemplateFields', interfaces)
 
   // Build output
   const imports = ['PlatformContext']
-  if (needsQuiz) imports.push('QuizQuestion')
 
   let output = `// Auto-generated from schema.json — do not edit.\n`
   output += `// Regenerate: npx alwaysyou generate-types\n\n`
   output += `import type { ${imports.join(', ')} } from '@alwaysyou/templates'\n\n`
+
+  if (needsQuiz) {
+    output += generateQuizType(quizFields)
+  }
 
   for (const iface of interfaces) {
     output += `export interface ${iface.name} {\n`
@@ -140,4 +144,28 @@ function hasNestedType(field, type) {
     return field.fields.some(f => hasNestedType(f, type))
   }
   return false
+}
+
+function generateQuizType(quizFields) {
+  const config = {}
+  for (const f of quizFields) {
+    if (f.config) {
+      for (const [k, v] of Object.entries(f.config)) {
+        if (v) config[k] = true
+      }
+    }
+  }
+
+  let type = `export interface QuizQuestion {\n`
+  type += `  id: string\n`
+  type += `  text: string\n`
+  type += `  options: string[]\n`
+  type += `  correctIndex: number\n`
+  if (config.allowMultipleCorrect) type += `  correctIndices?: number[]\n`
+  if (config.allowHints) type += `  hint?: string\n`
+  if (config.allowExplanations) type += `  explanation?: string\n`
+  if (config.allowImages) type += `  image?: string\n`
+  if (config.allowPoints) type += `  points?: number\n`
+  type += `}\n\n`
+  return type
 }

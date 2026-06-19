@@ -25,7 +25,7 @@ Examples:
 `.trim()
 
 async function main() {
-  const dir = resolveDir(args)
+  const dir = await resolveDir(args)
 
   switch (command) {
     case 'init': {
@@ -61,10 +61,13 @@ async function main() {
   }
 }
 
-function resolveDir(args) {
+async function resolveDir(args) {
+  const { existsSync } = await import('fs')
   const idx = args.indexOf('--dir')
   if (idx !== -1 && args[idx + 1]) return args[idx + 1]
-  return '.'
+  if (existsSync('template/schema.json')) return './template'
+  if (existsSync('schema.json')) return '.'
+  return './template'
 }
 
 async function runInit(dir) {
@@ -79,10 +82,16 @@ async function runInit(dir) {
     return
   }
 
+  // Auto-detect template directory
+  const templateDir = dir !== '.' ? dir
+    : existsSync('template/schema.json') ? './template'
+    : existsSync('schema.json') ? '.'
+    : './template'
+
   mkdirSync(routeDir, { recursive: true })
   writeFileSync(routeFile, `import { createStudioHandler } from '@alwaysyou/templates/studio'
 
-const handler = createStudioHandler({ dir: '${dir}' })
+const handler = createStudioHandler({ dir: '${templateDir}' })
 
 export const GET = handler
 export const POST = handler

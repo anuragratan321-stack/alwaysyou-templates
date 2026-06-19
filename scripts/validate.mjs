@@ -158,15 +158,6 @@ export async function run(dir) {
     return reportAndExit(errors, warnings)
   }
 
-  if (schema.version !== '2') {
-    fail(`schema.json — version must be "2" (string), got ${JSON.stringify(schema.version)}`,
-      'Change to "version": "2" (with quotes around the 2).')
-    errors++
-    return reportAndExit(errors, warnings)
-  } else {
-    pass('schema.json — version "2" ✓')
-  }
-
   if (!Array.isArray(schema.sections)) {
     fail('schema.json — missing sections array', 'Add a top-level "sections": [...] array.')
     errors++
