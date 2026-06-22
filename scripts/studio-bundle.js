@@ -3812,9 +3812,10 @@ function QuestionCard({
         question.options.length > 2 && /* @__PURE__ */ jsx7("button", { className: "icon-btn", onClick: () => removeOption(oi), children: /* @__PURE__ */ jsx7(Trash22, { size: 12 }) })
       ] }, oi);
     }) }),
-    question.options.length < 6 && /* @__PURE__ */ jsxs7("button", { className: "quiz-add-option", onClick: addOption, children: [
+    question.options.length < (config2.maxOptions ?? 6) && /* @__PURE__ */ jsxs7("button", { className: "quiz-add-option", onClick: addOption, children: [
       /* @__PURE__ */ jsx7(Plus3, { size: 12 }),
-      " Add option"
+      " Add option ",
+      config2.maxOptions ? `(${question.options.length}/${config2.maxOptions})` : ""
     ] }),
     (config2.allowHints || config2.allowExplanations || config2.allowPoints) && /* @__PURE__ */ jsxs7("div", { className: "quiz-extras", children: [
       config2.allowHints && /* @__PURE__ */ jsxs7("div", { className: "quiz-extra-row", children: [
@@ -4234,6 +4235,25 @@ function FieldEditModal({ field: initialField, demoValue: initialDemo, onSave, o
                   update({ config: { ...prev, maxQuestions: e.target.value ? Number(e.target.value) : void 0 } });
                 },
                 placeholder: "No limit",
+                style: { width: "120px" }
+              }
+            )
+          ] }),
+          /* @__PURE__ */ jsxs9("div", { className: "form-group", children: [
+            /* @__PURE__ */ jsx9("label", { className: "form-label", children: "Max Options per Question" }),
+            /* @__PURE__ */ jsx9(
+              "input",
+              {
+                className: "form-input",
+                type: "number",
+                min: 2,
+                max: 10,
+                value: field.config?.maxOptions ?? "",
+                onChange: (e) => {
+                  const prev = field.config || {};
+                  update({ config: { ...prev, maxOptions: e.target.value ? Number(e.target.value) : void 0 } });
+                },
+                placeholder: "6 (default)",
                 style: { width: "120px" }
               }
             )

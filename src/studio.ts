@@ -70,7 +70,7 @@ function buildHtml(slug: string): string {
 type SchemaField = {
   key: string; label?: string; type: string; required?: boolean
   options?: string[]; fields?: SchemaField[]
-  config?: Record<string, boolean | undefined>
+  config?: Record<string, boolean | number | undefined>
 }
 
 const TYPE_MAP: Record<string, string> = {
