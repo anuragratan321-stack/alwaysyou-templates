@@ -223,11 +223,34 @@ export function createStudioHandler(options: StudioOptions) {
         }
 
         const written: string[] = []
-        for (const key of ['schema', 'demo', 'manifest']) {
-          if (payload[key]) {
-            writeFileSync(join(templateDir, key + '.json'), JSON.stringify(payload[key], null, 2) + '\n')
-            written.push(key + '.json')
+
+        if (payload.schema) {
+          writeFileSync(join(templateDir, 'schema.json'), JSON.stringify(payload.schema, null, 2) + '\n')
+          written.push('schema.json')
+        }
+
+        if (payload.demo) {
+          // Prune stale keys and reorder to match current schema field order
+          const schema = payload.schema ?? (() => {
+            try { return JSON.parse(readFileSync(join(templateDir, 'schema.json'), 'utf-8')) } catch { return null }
+          })()
+          let demoToWrite = payload.demo
+          if (schema && Array.isArray(schema.sections)) {
+            const schemaKeys: string[] = (schema.sections as Array<{ fields: Array<{ key: string }> }>)
+              .flatMap(s => (s.fields ?? []).map(f => f.key))
+            const pruned: Record<string, unknown> = {}
+            for (const key of schemaKeys) {
+              if (key in demoToWrite) pruned[key] = demoToWrite[key]
+            }
+            demoToWrite = pruned
           }
+          writeFileSync(join(templateDir, 'demo.json'), JSON.stringify(demoToWrite, null, 2) + '\n')
+          written.push('demo.json')
+        }
+
+        if (payload.manifest) {
+          writeFileSync(join(templateDir, 'manifest.json'), JSON.stringify(payload.manifest, null, 2) + '\n')
+          written.push('manifest.json')
         }
 
         if (payload.schema && Array.isArray(payload.schema.sections)) {
