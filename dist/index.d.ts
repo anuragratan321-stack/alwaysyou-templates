@@ -1,5 +1,5 @@
-import type { PlatformContext, TemplateData, TrackFn } from './types';
-export type { AudioFieldValue, QuizQuestion, CapabilitiesAPI, PlatformContext, TemplateData, TrackFn, } from './types';
+import type { PlatformContext, TemplateData, TrackFn, RSVPEntry, RSVPSubmission, GuestbookEntry } from './types';
+export type { AudioFieldValue, QuizQuestion, CapabilitiesAPI, PlatformContext, TemplateData, TrackFn, RSVPEntry, RSVPSubmission, GuestbookEntry, } from './types';
 export declare function useAlwaysYou<T extends object = TemplateData>(): {
     data: T & PlatformContext;
     track: TrackFn;
@@ -67,3 +67,22 @@ export declare function usePopupTrigger(type: 'feedback' | 'response'): void;
 export declare function useFont(fonts: string | string[]): void;
 export declare function setSessionVariable(key: string, value: unknown): void;
 export declare function appendSessionVariable(key: string, value: unknown): void;
+export declare function useRSVP(): {
+    rsvps: RSVPEntry[];
+    loading: boolean;
+    submit: (data: RSVPSubmission) => Promise<boolean>;
+    stats: {
+        attending: number;
+        notAttending: number;
+        maybe: number;
+        totalGuests: number;
+    };
+};
+export declare function useGuestbook(): {
+    entries: GuestbookEntry[];
+    loading: boolean;
+    submit: (data: {
+        name: string;
+        message?: string;
+    }) => Promise<boolean>;
+};

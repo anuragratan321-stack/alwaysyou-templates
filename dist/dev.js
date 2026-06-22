@@ -72,7 +72,7 @@ export function AlwaysYouProvider({ data, mode = 'full', schema, onTrack, childr
             _instanceId: 'dev-preview',
             _capabilities: {
                 guestbook: '#', reactions: '#', respond: '#',
-                open: '#', track: '#', visit: '#', error: '#',
+                open: '#', track: '#', visit: '#', error: '#', rsvp: '#',
             },
         };
         const track = (event, payload) => {

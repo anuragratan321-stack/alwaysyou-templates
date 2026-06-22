@@ -5,7 +5,7 @@ import {
   windowTrack,
   setCurrentScreen,
 } from './context'
-import type { PlatformContext, TemplateData, TrackFn } from './types'
+import type { PlatformContext, TemplateData, TrackFn, RSVPEntry, RSVPSubmission, GuestbookEntry } from './types'
 
 export type {
   AudioFieldValue,
@@ -14,6 +14,9 @@ export type {
   PlatformContext,
   TemplateData,
   TrackFn,
+  RSVPEntry,
+  RSVPSubmission,
+  GuestbookEntry,
 } from './types'
 
 // ── useAlwaysYou() ───────────────────────────────────────────────────────────
@@ -496,4 +499,113 @@ export function setSessionVariable(key: string, value: unknown): void {
 
 export function appendSessionVariable(key: string, value: unknown): void {
   windowTrack('session_variable', { key, value, _merge: 'append' })
+}
+
+// ── useRSVP() — RSVP management for invitation templates ────────────────────
+
+export function useRSVP(): {
+  rsvps: RSVPEntry[]
+  loading: boolean
+  submit: (data: RSVPSubmission) => Promise<boolean>
+  stats: { attending: number; notAttending: number; maybe: number; totalGuests: number }
+} {
+  const ctx = useContext(AlwaysYouContext)
+  const data = ctx ? ctx.data : windowData()
+  const emit = ctx ? ctx.track : windowTrack
+  const caps = data._capabilities
+  const [rsvps, setRsvps] = useState<RSVPEntry[]>([])
+  const [loading, setLoading] = useState(true)
+  const fetched = useRef(false)
+
+  useEffect(() => {
+    if (fetched.current || !caps?.rsvp) { setLoading(false); return }
+    fetched.current = true
+    fetch(caps.rsvp)
+      .then((r) => r.json())
+      .then((d) => setRsvps(d.entries ?? []))
+      .catch(() => {})
+      .finally(() => setLoading(false))
+  }, [caps?.rsvp])
+
+  const submit = useCallback(
+    async (submission: RSVPSubmission): Promise<boolean> => {
+      if (!caps?.rsvp) return false
+      try {
+        const res = await fetch(caps.rsvp, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(submission),
+        })
+        if (!res.ok) return false
+        const { entry } = await res.json()
+        if (entry) setRsvps((prev) => [entry, ...prev])
+        emit('rsvp_submitted', { response: submission.response, guest_count: submission.guest_count ?? 1 })
+        return true
+      } catch {
+        return false
+      }
+    },
+    [caps?.rsvp, emit],
+  )
+
+  const stats = (() => {
+    let attending = 0, notAttending = 0, maybe = 0, totalGuests = 0
+    for (const r of rsvps) {
+      if (r.response === 'attending') { attending++; totalGuests += r.guest_count }
+      else if (r.response === 'not_attending') notAttending++
+      else maybe++
+    }
+    return { attending, notAttending, maybe, totalGuests }
+  })()
+
+  return { rsvps, loading, submit, stats }
+}
+
+// ── useGuestbook() — wishes wall for templates ──────────────────────────────
+
+export function useGuestbook(): {
+  entries: GuestbookEntry[]
+  loading: boolean
+  submit: (data: { name: string; message?: string }) => Promise<boolean>
+} {
+  const ctx = useContext(AlwaysYouContext)
+  const data = ctx ? ctx.data : windowData()
+  const emit = ctx ? ctx.track : windowTrack
+  const caps = data._capabilities
+  const [entries, setEntries] = useState<GuestbookEntry[]>([])
+  const [loading, setLoading] = useState(true)
+  const fetched = useRef(false)
+
+  useEffect(() => {
+    if (fetched.current || !caps?.guestbook) { setLoading(false); return }
+    fetched.current = true
+    fetch(caps.guestbook)
+      .then((r) => r.json())
+      .then((d) => setEntries(d.entries ?? []))
+      .catch(() => {})
+      .finally(() => setLoading(false))
+  }, [caps?.guestbook])
+
+  const submit = useCallback(
+    async (submission: { name: string; message?: string }): Promise<boolean> => {
+      if (!caps?.guestbook) return false
+      try {
+        const res = await fetch(caps.guestbook, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(submission),
+        })
+        if (!res.ok) return false
+        const { entry } = await res.json()
+        if (entry) setEntries((prev) => [entry, ...prev])
+        emit('wish_posted', { name: submission.name })
+        return true
+      } catch {
+        return false
+      }
+    },
+    [caps?.guestbook, emit],
+  )
+
+  return { entries, loading, submit }
 }

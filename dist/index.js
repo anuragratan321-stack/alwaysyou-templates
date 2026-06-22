@@ -349,3 +349,105 @@ export function setSessionVariable(key, value) {
 export function appendSessionVariable(key, value) {
     windowTrack('session_variable', { key, value, _merge: 'append' });
 }
+// ── useRSVP() — RSVP management for invitation templates ────────────────────
+export function useRSVP() {
+    const ctx = useContext(AlwaysYouContext);
+    const data = ctx ? ctx.data : windowData();
+    const emit = ctx ? ctx.track : windowTrack;
+    const caps = data._capabilities;
+    const [rsvps, setRsvps] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const fetched = useRef(false);
+    useEffect(() => {
+        if (fetched.current || !caps?.rsvp) {
+            setLoading(false);
+            return;
+        }
+        fetched.current = true;
+        fetch(caps.rsvp)
+            .then((r) => r.json())
+            .then((d) => setRsvps(d.entries ?? []))
+            .catch(() => { })
+            .finally(() => setLoading(false));
+    }, [caps?.rsvp]);
+    const submit = useCallback(async (submission) => {
+        if (!caps?.rsvp)
+            return false;
+        try {
+            const res = await fetch(caps.rsvp, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(submission),
+            });
+            if (!res.ok)
+                return false;
+            const { entry } = await res.json();
+            if (entry)
+                setRsvps((prev) => [entry, ...prev]);
+            emit('rsvp_submitted', { response: submission.response, guest_count: submission.guest_count ?? 1 });
+            return true;
+        }
+        catch {
+            return false;
+        }
+    }, [caps?.rsvp, emit]);
+    const stats = (() => {
+        let attending = 0, notAttending = 0, maybe = 0, totalGuests = 0;
+        for (const r of rsvps) {
+            if (r.response === 'attending') {
+                attending++;
+                totalGuests += r.guest_count;
+            }
+            else if (r.response === 'not_attending')
+                notAttending++;
+            else
+                maybe++;
+        }
+        return { attending, notAttending, maybe, totalGuests };
+    })();
+    return { rsvps, loading, submit, stats };
+}
+// ── useGuestbook() — wishes wall for templates ──────────────────────────────
+export function useGuestbook() {
+    const ctx = useContext(AlwaysYouContext);
+    const data = ctx ? ctx.data : windowData();
+    const emit = ctx ? ctx.track : windowTrack;
+    const caps = data._capabilities;
+    const [entries, setEntries] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const fetched = useRef(false);
+    useEffect(() => {
+        if (fetched.current || !caps?.guestbook) {
+            setLoading(false);
+            return;
+        }
+        fetched.current = true;
+        fetch(caps.guestbook)
+            .then((r) => r.json())
+            .then((d) => setEntries(d.entries ?? []))
+            .catch(() => { })
+            .finally(() => setLoading(false));
+    }, [caps?.guestbook]);
+    const submit = useCallback(async (submission) => {
+        if (!caps?.guestbook)
+            return false;
+        try {
+            const res = await fetch(caps.guestbook, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(submission),
+            });
+            if (!res.ok)
+                return false;
+            const { entry } = await res.json();
+            if (entry)
+                setEntries((prev) => [entry, ...prev]);
+            emit('wish_posted', { name: submission.name });
+            return true;
+        }
+        catch {
+            return false;
+        }
+    }, [caps?.guestbook, emit]);
+    return { entries, loading, submit };
+}

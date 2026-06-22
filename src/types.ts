@@ -26,6 +26,34 @@ export type CapabilitiesAPI = {
   track: string
   visit: string
   error: string
+  rsvp: string
+}
+
+export type RSVPEntry = {
+  id: string
+  guest_name: string
+  guest_phone?: string | null
+  response: 'attending' | 'not_attending' | 'maybe'
+  guest_count: number
+  dietary?: string | null
+  message?: string | null
+  created_at: string
+}
+
+export type RSVPSubmission = {
+  guest_name: string
+  guest_phone?: string
+  response: 'attending' | 'not_attending' | 'maybe'
+  guest_count?: number
+  dietary?: string
+  message?: string
+}
+
+export type GuestbookEntry = {
+  id: string
+  name: string
+  message?: string | null
+  created_at: string
 }
 
 export type PlatformContext = {
