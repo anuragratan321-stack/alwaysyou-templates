@@ -3995,6 +3995,7 @@ var SUB_FIELD_TYPES = [
   { value: "image", label: "Image" },
   { value: "image_array", label: "Photo Gallery" },
   { value: "video", label: "Video" },
+  { value: "video_array", label: "Video Gallery" },
   { value: "audio", label: "Audio" }
 ];
 function SubFieldsEditor({ fields, onChange }) {
