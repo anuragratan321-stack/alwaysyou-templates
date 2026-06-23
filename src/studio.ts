@@ -75,7 +75,7 @@ type SchemaField = {
 
 const TYPE_MAP: Record<string, string> = {
   text: 'string', textarea: 'string', date: 'string', number: 'number',
-  image: 'string', image_array: 'string[]', video: 'string',
+  image: 'string', image_array: 'string[]', video: 'string', video_array: 'string[]',
   audio: '{ url: string }', color: 'string', toggle: 'boolean',
   quiz: 'QuizQuestion[]', select: 'string',
 }

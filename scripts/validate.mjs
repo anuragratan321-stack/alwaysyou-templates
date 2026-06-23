@@ -3,7 +3,7 @@ import { join, relative, resolve } from 'node:path'
 
 const VALID_FIELD_TYPES = new Set([
   'text', 'textarea', 'date', 'number',
-  'image', 'image_array', 'video',
+  'image', 'image_array', 'video', 'video_array',
   'audio',
   'color', 'select', 'toggle',
   'group', 'group_array',

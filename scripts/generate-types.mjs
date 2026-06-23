@@ -14,6 +14,7 @@ const TYPE_MAP = {
   image: 'string',
   image_array: 'string[]',
   video: 'string',
+  video_array: 'string[]',
   audio: '{ url: string }',
   color: 'string',
   toggle: 'boolean',

@@ -2848,6 +2848,13 @@ var FIELD_TYPES = {
     defaultConfig: { required: false },
     demoDefault: () => ""
   },
+  video_array: {
+    label: "Video Gallery",
+    icon: "video",
+    category: "media",
+    defaultConfig: { max: 4 },
+    demoDefault: () => []
+  },
   audio: {
     label: "Audio",
     icon: "music",
@@ -4068,7 +4075,7 @@ function FieldEditModal({ field: initialField, demoValue: initialDemo, onSave, o
   const update = (patch) => setField((f) => ({ ...f, ...patch }));
   const isGroup = field.type === "group" || field.type === "group_array";
   const hasAppearance = field.type === "text" || field.type === "textarea" || field.type === "number" || field.type === "date";
-  const hasConstraints = field.type === "text" || field.type === "textarea" || field.type === "number" || field.type === "image" || field.type === "image_array" || field.type === "video" || field.type === "audio";
+  const hasConstraints = field.type === "text" || field.type === "textarea" || field.type === "number" || field.type === "image" || field.type === "image_array" || field.type === "video" || field.type === "video_array" || field.type === "audio";
   return /* @__PURE__ */ jsx9("div", { className: "field-modal-overlay", onClick: (e) => {
     if (e.target === e.currentTarget) onClose();
   }, children: /* @__PURE__ */ jsxs9("div", { className: "field-modal", children: [
@@ -4167,6 +4174,20 @@ function FieldEditModal({ field: initialField, demoValue: initialDemo, onSave, o
           ] }),
           /* @__PURE__ */ jsxs9("div", { className: "form-group", children: [
             /* @__PURE__ */ jsx9("label", { className: "form-label", children: "Max duration (sec)" }),
+            /* @__PURE__ */ jsx9("input", { className: "form-input", type: "number", value: field.constraints?.maxDurationSec ?? "", onChange: (e) => update({ constraints: { ...field.constraints, maxDurationSec: e.target.value ? Number(e.target.value) : void 0 } }) })
+          ] })
+        ] }),
+        field.type === "video_array" && /* @__PURE__ */ jsxs9(Fragment3, { children: [
+          /* @__PURE__ */ jsxs9("div", { className: "form-group", children: [
+            /* @__PURE__ */ jsx9("label", { className: "form-label", children: "Max videos" }),
+            /* @__PURE__ */ jsx9("input", { className: "form-input", type: "number", value: field.max || "", onChange: (e) => update({ max: e.target.value ? Number(e.target.value) : void 0 }) })
+          ] }),
+          /* @__PURE__ */ jsxs9("div", { className: "form-group", children: [
+            /* @__PURE__ */ jsx9("label", { className: "form-label", children: "Max size per video (MB)" }),
+            /* @__PURE__ */ jsx9("input", { className: "form-input", type: "number", value: field.constraints?.maxSizeMB ?? "", onChange: (e) => update({ constraints: { ...field.constraints, maxSizeMB: e.target.value ? Number(e.target.value) : void 0 } }) })
+          ] }),
+          /* @__PURE__ */ jsxs9("div", { className: "form-group", children: [
+            /* @__PURE__ */ jsx9("label", { className: "form-label", children: "Max duration per video (sec)" }),
             /* @__PURE__ */ jsx9("input", { className: "form-input", type: "number", value: field.constraints?.maxDurationSec ?? "", onChange: (e) => update({ constraints: { ...field.constraints, maxDurationSec: e.target.value ? Number(e.target.value) : void 0 } }) })
           ] })
         ] }),
@@ -4729,7 +4750,7 @@ function FieldList() {
 }
 
 // scripts/studio/components/DemoTab.tsx
-import { RotateCcw, Plus as Plus6, Trash2 as Trash25, Link2, Clock, Calendar, ImagePlus } from "lucide-react";
+import { RotateCcw, Plus as Plus6, Trash2 as Trash25, Link2, Clock, Calendar, ImagePlus, Video as Video2 } from "lucide-react";
 import { jsx as jsx11, jsxs as jsxs11 } from "react/jsx-runtime";
 function AudioEditor({ value, onChange }) {
   const v = value || { url: "" };
@@ -4834,6 +4855,39 @@ function ImageArrayEditor({
       /* @__PURE__ */ jsx11(Plus6, { size: 13 }),
       " Add Image ",
       max ? `(${images.length}/${max})` : ""
+    ] })
+  ] });
+}
+function VideoArrayEditor({
+  value,
+  max,
+  onChange
+}) {
+  const videos = Array.isArray(value) ? value : [];
+  const canAdd = !max || videos.length < max;
+  return /* @__PURE__ */ jsxs11("div", { className: "demo-image-array", children: [
+    videos.map((url, i) => /* @__PURE__ */ jsxs11("div", { className: "demo-image-array-item", children: [
+      /* @__PURE__ */ jsx11("div", { className: "demo-image-array-thumb", children: url ? /* @__PURE__ */ jsx11("video", { src: url, style: { width: "100%", height: "100%", objectFit: "cover" }, muted: true }) : /* @__PURE__ */ jsx11(Video2, { size: 16, style: { color: "var(--text-tertiary)" } }) }),
+      /* @__PURE__ */ jsx11(
+        "input",
+        {
+          className: "form-input",
+          value: url,
+          onChange: (e) => {
+            const next = [...videos];
+            next[i] = e.target.value;
+            onChange(next);
+          },
+          placeholder: `Video URL ${i + 1}`,
+          style: { flex: 1 }
+        }
+      ),
+      /* @__PURE__ */ jsx11("button", { className: "icon-btn", onClick: () => onChange(videos.filter((_, j) => j !== i)), title: "Remove", children: /* @__PURE__ */ jsx11(Trash25, { size: 12 }) })
+    ] }, i)),
+    canAdd && /* @__PURE__ */ jsxs11("button", { className: "demo-image-array-add", onClick: () => onChange([...videos, ""]), children: [
+      /* @__PURE__ */ jsx11(Plus6, { size: 13 }),
+      " Add Video ",
+      max ? `(${videos.length}/${max})` : ""
     ] })
   ] });
 }
@@ -4944,6 +4998,9 @@ function FieldInput({
   }
   if (field.type === "image_array") {
     return /* @__PURE__ */ jsx11(ImageArrayEditor, { value, max: field.max, onChange });
+  }
+  if (field.type === "video_array") {
+    return /* @__PURE__ */ jsx11(VideoArrayEditor, { value, max: field.max, onChange });
   }
   if (field.type === "textarea") {
     return /* @__PURE__ */ jsx11(
