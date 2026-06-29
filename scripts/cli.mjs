@@ -12,6 +12,7 @@ Commands:
   validate          Check your template for errors before uploading
   pack              Create a ZIP ready for upload
   generate-types    Generate TypeScript types from schema.json
+  mcp               Start the stdio MCP server for Claude integration
   help              Show this help message
 
 Options:
@@ -22,6 +23,7 @@ Examples:
   npx alwaysyou validate
   npx alwaysyou pack --dir ./my-template
   npx alwaysyou generate-types
+  npx alwaysyou mcp --dir ./templates/my-template
 `.trim()
 
 async function main() {
@@ -45,6 +47,11 @@ async function main() {
     case 'generate-types': {
       const mod = await import('./generate-types.mjs')
       process.exit(await mod.run(dir))
+      break
+    }
+    case 'mcp': {
+      const mod = await import('./mcp.mjs')
+      await mod.run(dir)
       break
     }
     case 'help':

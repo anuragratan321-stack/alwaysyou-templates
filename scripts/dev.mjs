@@ -345,42 +345,12 @@ window.addEventListener('message', function(e) {
 
   // ── File watcher ──────────────────────────────────────────────────────────
 
-  function syncDemoToSchema() {
-    const schemaPath = join(templateDir, 'schema.json')
-    const demoPath = join(templateDir, 'demo.json')
-    if (!existsSync(schemaPath) || !existsSync(demoPath)) return false
-    try {
-      const schema = JSON.parse(readFileSync(schemaPath, 'utf-8'))
-      const demo = JSON.parse(readFileSync(demoPath, 'utf-8'))
-      const sections = schema.sections ?? []
-      const schemaKeys = sections.flatMap(s => (s.fields ?? []).map(f => f.key))
-      const pruned = {}
-      for (const key of schemaKeys) {
-        if (key in demo) pruned[key] = demo[key]
-      }
-      const before = JSON.stringify(demo)
-      const after = JSON.stringify(pruned)
-      if (before === after) return false
-      writeFileSync(demoPath, JSON.stringify(pruned, null, 2) + '\n')
-      return true
-    } catch { return false }
-  }
-
   let debounceTimer = null
   function onFileChange(filename) {
     if (debounceTimer) clearTimeout(debounceTimer)
     debounceTimer = setTimeout(async () => {
       const file = filename ?? ''
       const now = new Date().toLocaleTimeString('en-GB', { hour12: false })
-
-      if (file === 'schema.json' || file.endsWith('/schema.json')) {
-        if (syncDemoToSchema()) console.log(`  ${now}  demo.json synced (stale fields removed)`)
-        loadDemoData()
-        const r = await compile()
-        if (r.ok) { console.log(`  ${now}  Recompiled in ${r.ms}ms (${r.sizeKB} KB)`); sendReload() }
-        else console.log(`  ${now}  \x1b[31m✖ ${r.error}\x1b[0m`)
-        return
-      }
 
       if (file === 'demo.json' || file.endsWith('/demo.json')) {
         loadDemoData()
